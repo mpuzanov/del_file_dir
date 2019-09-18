@@ -1,0 +1,8 @@
+src_dirs:
+  - H:\TestDir
+exclude_masks:
+  - 'naim_*.bak'
+  - 'thumbs.db'
+masks:
+  - '*.bak'
+  - '*.txt'
