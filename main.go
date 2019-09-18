@@ -51,10 +51,15 @@ func scanLoop(cfg *Config) {
 		for _, file := range fileList {
 			//Проверяем маски
 			if matched, _ := cfg.match(file.Name); !matched {
-				fmt.Println("Пропускаем", file.Name)
+				fmt.Println("Пропускаем - ", file.Name)
 				continue
 			}
-			fmt.Println(file)
+			// Маска исключения
+			if matched, _ := cfg.matchExclude(file.Name); matched {
+				fmt.Println("Пропускаем - ", file.Name)
+				continue
+			}
+			fmt.Println("Оставили - ", file.Name)
 		}
 	}
 }
@@ -74,4 +79,3 @@ func readDir(searchDir string) {
 		return nil
 	})
 }
-
