@@ -12,6 +12,7 @@ import (
 // Config - структура для считывания конфигурационного файла
 type Config struct {
 	LogLevel     string           `yaml:"loglevel"`
+	LogToFile    bool             `yaml:"logToFile"`
 	SrcDirs      []string         `yaml:"src_dirs"`
 	ExcludeMasks []string         `yaml:"exclude_masks,omitempty"`
 	Masks        []string         `yaml:"masks,omitempty"`

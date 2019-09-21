@@ -9,20 +9,18 @@ masks_pattern:
   - '\w+_backup_(\d\d\d\d)_(\d\d)_(\d\d)_\w+.bak'
 #  - 'kv_all_backup_(\d\d\d\d)_(\d\d)_(\d\d)_\w+.bak'  
 exclude_masks:
-  - 'naim_*.bak'
   - '*.exe'
 masks:
  # - '*.bak'
-  - '*.txt'
 
 # Признак отправки результата работы на почту
 sendEmail: false
 # Email пользователя получения ошибок
-toEmail: "puzanovma@yandex.ru"
+toEmail: "example2@yandex.ru"
 
 # настройки SMTP-сервера для отправки писем
 settingsSMTP:
-  username : "mpuzanov@mail.ru"
-  password : "Gk)0Po4x"
+  username : "example@mail.ru"
+  password : 11111
   server  : "smtp.mail.ru"
   port : 25  

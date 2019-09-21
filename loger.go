@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,15 +19,15 @@ func initLogger(cfg *Config) error {
 	}
 	log.SetLevel(level)
 
-	// if cfg.LogToFile {
-	// 	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	// 	if err == nil {
-	// 		log.Infoln("logToFile: ", logFileName)
-	// 		log.Out = file
-	// 	} else {
-	// 		log.Info("Failed to log to file, using default stderr")
-	// 	}
-	// }
+	if cfg.LogToFile {
+		file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			log.Infoln("logToFile: ", logFileName)
+			log.Out = file
+		} else {
+			log.Info("Failed to log to file, using default stderr")
+		}
+	}
 	log.Infoln("log.Level:", log.Level)
 	return nil
 }

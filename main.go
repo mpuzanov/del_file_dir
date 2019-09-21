@@ -50,8 +50,8 @@ func (r *FilesDel) GetFile() (kol int64) {
 }
 
 const (
-	configFileName = "config.yaml"
-	// чётные числа удаляем + диапазон[11-20]
+	configFileName = "files/config.yaml"
+	logFileName    = "files/dir_file_dir.log"
 )
 
 var (
@@ -60,8 +60,10 @@ var (
 	cfg           *Config
 	dateEnd20Day  time.Time
 	dateEnd3Month time.Time
-	filterDayDel  = []int{2, 4, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30}
-	filePeriod    map[string]string
+	//Если старше 20 дней. Чётные числа удаляем + диапазон[11-20]
+	filterDayDel = []int{2, 4, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30}
+	filePeriod   map[string]string
+	message      string
 )
 
 func main() {
@@ -82,8 +84,13 @@ func main() {
 	dateEnd3Month = now.AddDate(0, -3, 0)  // - 3 месяцев
 	dateEnd20Day = now.AddDate(0, -0, -20) // -20 дней
 	filePeriod = make(map[string]string)
-	//fmt.Println("\nToday:", now, " dateEnd20Day:", dateEnd20Day," dateEnd3Month", dateEnd3Month)
+	//log.Trace("\nToday:", now, " dateEnd20Day:", dateEnd20Day," dateEnd3Month", dateEnd3Month)
 	scanLoop(cfg)
+
+	if cfg.SendEmail {
+		log.Printf("Отправляем на адрес: %s сообщение: %s\n", cfg.ToEmail, message)
+		SendEmail("del_file_dir", cfg.ToEmail, "Результаты чистки диска на сервер", message, "")
+	}
 }
 
 // scanLoop просматривает конфиг и для каждого каталога-источника
@@ -124,7 +131,7 @@ func scanLoop(cfg *Config) {
 
 			// Маска исключения
 			if matched, _ := cfg.matchExclude(file.Name); matched {
-				//fmt.Println("Пропускаем - ", file.Name)
+				//log.Trace("Пропускаем - ", file.Name)
 				continue
 			}
 
@@ -132,7 +139,7 @@ func scanLoop(cfg *Config) {
 			getInfoFromFile(&file)
 
 			if dateEnd20Day.Before(file.Date) {
-				log.Trace("не удаляем(<20 дней) - ", file.Name, file.Date, dateEnd20Day)
+				//log.Trace("не удаляем(<20 дней) - ", file.Name, file.Date, dateEnd20Day)
 				continue
 			}
 
@@ -168,16 +175,36 @@ func scanLoop(cfg *Config) {
 				log.Trace("до 3 мес. - ", fileListDel.files[index].Name)
 			}
 		}
+		s := ""
+		log.Info(fullSrcDir)
+		message += fullSrcDir + "\n"
+		disk := DiskUsage(fullSrcDir)
+		s = fmt.Sprintf("Свободно:     %8.2f GB", float64(disk.Free)/float64(GB))
+		log.Info(s)
+		message += s + "\n"
+		log.Printf("Файлов для удаления: %d. Размер: %8.2f GB", fileListDel.GetFile(), float64(fileListDel.GetSize())/float64(GB))
+		message += fmt.Sprintf("Файлов для удаления: %d. Размер: %8.2f GB\n", fileListDel.GetFile(), float64(fileListDel.GetSize())/float64(GB))
 		for index := 0; index < len(fileListDel.files); index++ {
 			if fileListDel.files[index].Deleted {
-				log.Traceln(fileListDel.files[index].Name, fileListDel.files[index].Deleted)
+				log.Info(fileListDel.files[index].Name, "- Удаляем")
+				message += fmt.Sprintf(fileListDel.files[index].Name, "- Удаляем\n")
 				removeFile(fileListDel.files[index].FullName)
 			}
 		}
-		log.Printf("Файлов для удаления: %d. Размер: %8.2f GB", fileListDel.GetFile(), float64(fileListDel.GetSize())/float64(GB))
+		disk = DiskUsage(fullSrcDir)
+		s = fmt.Sprintf("Всего:        %8.2f GB", float64(disk.All)/float64(GB))
+		log.Info(s)
+		message += s + "\n"
+		s = fmt.Sprintf("Использовано: %8.2f GB", float64(disk.Used)/float64(GB))
+		log.Info(s)
+		message += s + "\n"
+		s = fmt.Sprintf("Свободно:     %8.2f GB", float64(disk.Free)/float64(GB))
+		log.Info(s)
+		message += s + "\n"
 	}
 }
 
+//readDir Читаем файлы из каталога и заносим их в fileList
 func readDir(searchDir string) {
 
 	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
@@ -194,7 +221,7 @@ func readDir(searchDir string) {
 	})
 }
 
-// удаление файла
+// удаление файла с диска
 func removeFile(fileName string) {
 	err := os.Remove(fileName)
 	if err != nil {
@@ -203,7 +230,7 @@ func removeFile(fileName string) {
 	}
 }
 
-// Получаем дату из имени файла
+// Получаем информацию из имени файла
 func getInfoFromFile(file *FileBak) {
 	//pattern := `(\d{4})_(\d{2})_(\d{2})`
 	pattern := `(\w+)_backup_(\d\d\d\d)_(\d\d)_(\d\d)_\w+.bak`
@@ -211,7 +238,7 @@ func getInfoFromFile(file *FileBak) {
 
 	match := re.FindStringSubmatch(file.Name)
 	if match != nil {
-		//fmt.Println(match[1], match[2], match[3], match[4])
+		//log.Println(match[1], match[2], match[3], match[4])
 		file.BaseName = match[1]
 		year, _ := strconv.ParseInt(match[2], 10, 0)
 		month, _ := strconv.ParseInt(match[3], 10, 0)
@@ -220,9 +247,4 @@ func getInfoFromFile(file *FileBak) {
 		file.Period = match[1] + "_" + match[2] + match[3]
 		//fmt.Println(file.BaseName, file.Date, file.Period)
 	}
-}
-
-func removeFromSlice(sl []FileBak, indDel int) []FileBak {
-	copy(sl[indDel:], sl[indDel+1:])
-	return sl[:len(sl)-1]
 }
