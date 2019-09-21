@@ -18,7 +18,7 @@ type FileBak struct {
 	Size     int64
 	Date     time.Time
 	BaseName string
-	Period   string // формат BaseName_YYYYMM
+	Period   string // формат База_ГодМесяц
 	Deleted  bool
 }
 
@@ -55,7 +55,6 @@ const (
 )
 
 var (
-	fileList      []FileBak
 	fileListDel   FilesDel
 	cfg           *Config
 	dateEnd20Day  time.Time
@@ -63,7 +62,7 @@ var (
 	//Если старше 20 дней. Чётные числа удаляем + диапазон[11-20]
 	filterDayDel = []int{2, 4, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30}
 	filePeriod   map[string]string
-	message      string
+	messageMail  string
 )
 
 func main() {
@@ -77,7 +76,7 @@ func main() {
 	if err := initLogger(cfg); err != nil {
 		log.Fatalln(err)
 	}
-	fileList = []FileBak{}
+
 	fileListDel = FilesDel{}
 
 	now := time.Now()
@@ -88,8 +87,8 @@ func main() {
 	scanLoop(cfg)
 
 	if cfg.SendEmail {
-		log.Printf("Отправляем на адрес: %s сообщение: %s\n", cfg.ToEmail, message)
-		SendEmail("del_file_dir", cfg.ToEmail, "Результаты чистки диска на сервер", message, "")
+		log.Printf("Отправляем на адрес: %s сообщение: %s\n", cfg.ToEmail, messageMail)
+		SendEmail("del_file_dir", cfg.ToEmail, "Результаты чистки диска на сервер", messageMail, "")
 	}
 }
 
@@ -106,7 +105,7 @@ func scanLoop(cfg *Config) {
 		log.Println("Сканируем каталог", fullSrcDir)
 
 		//читаем содержимое каталога
-		readDir(fullSrcDir)
+		fileList := readDir(fullSrcDir)
 
 		/*
 			Формируем список файлов для удаления
@@ -177,36 +176,39 @@ func scanLoop(cfg *Config) {
 		}
 		s := ""
 		log.Info(fullSrcDir)
-		message += fullSrcDir + "\n"
+		messageMail += fullSrcDir + "\n"
 		disk := DiskUsage(fullSrcDir)
 		s = fmt.Sprintf("Свободно:     %8.2f GB", float64(disk.Free)/float64(GB))
 		log.Info(s)
-		message += s + "\n"
+		messageMail += s + "\n"
 		log.Printf("Файлов для удаления: %d. Размер: %8.2f GB", fileListDel.GetFile(), float64(fileListDel.GetSize())/float64(GB))
-		message += fmt.Sprintf("Файлов для удаления: %d. Размер: %8.2f GB\n", fileListDel.GetFile(), float64(fileListDel.GetSize())/float64(GB))
+		messageMail += fmt.Sprintf("Файлов для удаления: %d. Размер: %8.2f GB\n", fileListDel.GetFile(), float64(fileListDel.GetSize())/float64(GB))
 		for index := 0; index < len(fileListDel.files); index++ {
 			if fileListDel.files[index].Deleted {
-				log.Info(fileListDel.files[index].Name, "- Удаляем")
-				message += fmt.Sprintf(fileListDel.files[index].Name, "- Удаляем\n")
-				removeFile(fileListDel.files[index].FullName)
+				s = fileListDel.files[index].Name + "- Удаляем"
+				log.Info(s)
+				messageMail += s + "\n"
+				if err := removeFile(fileListDel.files[index].FullName); err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 		disk = DiskUsage(fullSrcDir)
 		s = fmt.Sprintf("Всего:        %8.2f GB", float64(disk.All)/float64(GB))
 		log.Info(s)
-		message += s + "\n"
+		messageMail += s + "\n"
 		s = fmt.Sprintf("Использовано: %8.2f GB", float64(disk.Used)/float64(GB))
 		log.Info(s)
-		message += s + "\n"
+		messageMail += s + "\n"
 		s = fmt.Sprintf("Свободно:     %8.2f GB", float64(disk.Free)/float64(GB))
 		log.Info(s)
-		message += s + "\n"
+		messageMail += s + "\n"
 	}
 }
 
 //readDir Читаем файлы из каталога и заносим их в fileList
-func readDir(searchDir string) {
-
+func readDir(searchDir string) []FileBak {
+	fileList := []FileBak{}
 	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
 			file := FileBak{}
@@ -219,15 +221,16 @@ func readDir(searchDir string) {
 		}
 		return nil
 	})
+	return fileList
 }
 
 // удаление файла с диска
-func removeFile(fileName string) {
+func removeFile(fileName string) error {
 	err := os.Remove(fileName)
 	if err != nil {
 		fmt.Println(err)
-		return
 	}
+	return err
 }
 
 // Получаем информацию из имени файла
