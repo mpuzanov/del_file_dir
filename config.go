@@ -2,8 +2,8 @@ package main
 
 import (
 	"io/ioutil"
-	"log"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/go-yaml/yaml"
@@ -11,9 +11,14 @@ import (
 
 // Config - структура для считывания конфигурационного файла
 type Config struct {
-	SrcDirs      []string `yaml:"src_dirs"`
-	ExcludeMasks []string `yaml:"exclude_masks,omitempty"`
-	Masks        []string `yaml:"masks"`
+	LogLevel     string           `yaml:"loglevel"`
+	SrcDirs      []string         `yaml:"src_dirs"`
+	ExcludeMasks []string         `yaml:"exclude_masks,omitempty"`
+	Masks        []string         `yaml:"masks,omitempty"`
+	MasksPattern []string         `yaml:"masks_pattern,omitempty"`
+	ToEmail      string           `yaml:"toEmail,omitempty"`
+	SendEmail    bool             `yaml:"sendEmail,omitempty"`
+	SettingsSMTP EmailCredentials `yaml:"settingsSMTP,omitempty"`
 }
 
 func readConfig(ConfigName string) (x *Config, err error) {
@@ -24,6 +29,9 @@ func readConfig(ConfigName string) (x *Config, err error) {
 	x = new(Config)
 	if err = yaml.Unmarshal(file, x); err != nil {
 		return nil, err
+	}
+	if x.LogLevel == "" {
+		x.LogLevel = "Trace"
 	}
 	return x, nil
 }
@@ -61,6 +69,21 @@ func (r *Config) matchExclude(srcFile string) (bool, []string) {
 			continue
 		}
 		if matched {
+			masks = append(masks, mask)
+		}
+	}
+	if len(masks) == 0 {
+		return false, masks
+	}
+	return true, masks
+}
+
+func (r *Config) matchParent(srcFile string) (bool, []string) {
+	var masks []string
+	for _, mask := range r.MasksPattern {
+		re := regexp.MustCompile(mask)
+		//fmt.Println(mask, srcFile, re.MatchString(srcFile))
+		if re.MatchString(srcFile) {
 			masks = append(masks, mask)
 		}
 	}

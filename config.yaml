@@ -1,8 +1,28 @@
+#Допустимые значения: Trace, Debug, Info, Warning, Error, Fatal, Panic
+loglevel: Trace
+
 src_dirs:
   - H:\TestDir
+#  - S:\
+# Регулярное выражение для отбора файлов
+masks_pattern: 
+  - '\w+_backup_(\d\d\d\d)_(\d\d)_(\d\d)_\w+.bak'
+#  - 'kv_all_backup_(\d\d\d\d)_(\d\d)_(\d\d)_\w+.bak'  
 exclude_masks:
   - 'naim_*.bak'
-  - 'thumbs.db'
+  - '*.exe'
 masks:
-  - '*.bak'
+ # - '*.bak'
   - '*.txt'
+
+# Признак отправки результата работы на почту
+sendEmail: false
+# Email пользователя получения ошибок
+toEmail: "puzanovma@yandex.ru"
+
+# настройки SMTP-сервера для отправки писем
+settingsSMTP:
+  username : "mpuzanov@mail.ru"
+  password : "Gk)0Po4x"
+  server  : "smtp.mail.ru"
+  port : 25  
