@@ -176,7 +176,7 @@ func scanLoop(cfg *Config) {
 		}
 		s := ""
 		log.Info(fullSrcDir)
-		messageMail += fullSrcDir + "\n"
+		messageMail = fullSrcDir + "\n"
 		disk := DiskUsage(fullSrcDir)
 		s = fmt.Sprintf("Свободно:     %8.2f GB", float64(disk.Free)/float64(GB))
 		log.Info(s)
@@ -188,8 +188,10 @@ func scanLoop(cfg *Config) {
 				s = fileListDel.files[index].Name + "- Удаляем"
 				log.Info(s)
 				messageMail += s + "\n"
-				if err := removeFile(fileListDel.files[index].FullName); err != nil {
-					log.Fatal(err)
+				if !cfg.ModeWork { // В тестовом режиме не удаляем
+					if err := removeFile(fileListDel.files[index].FullName); err != nil {
+						log.Fatal(err)
+					}
 				}
 			}
 		}
@@ -235,19 +237,16 @@ func removeFile(fileName string) error {
 
 // Получаем информацию из имени файла
 func getInfoFromFile(file *FileBak) {
-	//pattern := `(\d{4})_(\d{2})_(\d{2})`
 	pattern := `(\w+)_backup_(\d\d\d\d)_(\d\d)_(\d\d)_\w+.bak`
 	re := regexp.MustCompile(pattern)
 
 	match := re.FindStringSubmatch(file.Name)
 	if match != nil {
-		//log.Println(match[1], match[2], match[3], match[4])
 		file.BaseName = match[1]
 		year, _ := strconv.ParseInt(match[2], 10, 0)
 		month, _ := strconv.ParseInt(match[3], 10, 0)
 		day, _ := strconv.ParseInt(match[4], 10, 0)
 		file.Date = time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
 		file.Period = match[1] + "_" + match[2] + match[3]
-		//fmt.Println(file.BaseName, file.Date, file.Period)
 	}
 }

@@ -13,6 +13,8 @@ import (
 type Config struct {
 	LogLevel     string           `yaml:"loglevel"`
 	LogToFile    bool             `yaml:"logToFile"`
+	MaxFileSize  int64            `yaml:"maxFileSize"`
+	ModeWork     bool             `yaml:"mode_work"`
 	SrcDirs      []string         `yaml:"src_dirs"`
 	ExcludeMasks []string         `yaml:"exclude_masks,omitempty"`
 	Masks        []string         `yaml:"masks,omitempty"`

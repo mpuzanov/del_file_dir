@@ -1,4 +1,4 @@
-module github.commpuzanovdel_file_dir
+module github.comm/puzanov/del_file_dir
 
 go 1.13
 
