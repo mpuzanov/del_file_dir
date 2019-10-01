@@ -49,23 +49,23 @@ func (r *FilesDel) GetFile() (kol int64) {
 	return
 }
 
-const (
-	configFileName = "files/config.yaml"
-	logFileName    = "files/dir_file_dir.log"
-)
-
 var (
-	fileListDel   FilesDel
-	cfg           *Config
-	dateEnd20Day  time.Time
-	dateEnd3Month time.Time
-	//Если старше 20 дней. Чётные числа удаляем + диапазон[11-20]
-	filterDayDel = []int{2, 4, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30}
+	configFileName = "files/config.yaml"
+	fileListDel    FilesDel
+	cfg            *Config
+	dateEnd20Day   time.Time
+	dateEnd3Month  time.Time
+	//Если старше 20 дней. Чётные числа удаляем + диапазон[11-21]
+	filterDayDel = []int{2, 4, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 26, 28, 30}
 	filePeriod   map[string]string
 	messageMail  string
 )
 
 func main() {
+	if len(os.Args) > 1 {
+		configFileName = os.Args[1]
+	}
+
 	//загружаем конфиг
 	var err error
 	cfg, err = readConfig(configFileName)
@@ -83,12 +83,16 @@ func main() {
 	dateEnd3Month = now.AddDate(0, -3, 0)  // - 3 месяцев
 	dateEnd20Day = now.AddDate(0, -0, -20) // -20 дней
 	filePeriod = make(map[string]string)
-	//log.Trace("\nToday:", now, " dateEnd20Day:", dateEnd20Day," dateEnd3Month", dateEnd3Month)
+	log.Trace("\nToday:", now, " dateEnd20Day:", dateEnd20Day, " dateEnd3Month", dateEnd3Month)
+
+	if cfg.TestWork {
+		log.Println("Включен режим тестирования (файлы не удаляются)")
+	}
 	scanLoop(cfg)
 
 	if cfg.SendEmail {
 		log.Printf("Отправляем на адрес: %s сообщение: %s\n", cfg.ToEmail, messageMail)
-		SendEmail("del_file_dir", cfg.ToEmail, "Результаты чистки диска на сервер", messageMail, "")
+		SendEmail("del_file_dir", cfg.ToEmail, "Результаты чистки диска на сервере", messageMail, "")
 	}
 }
 
@@ -130,7 +134,7 @@ func scanLoop(cfg *Config) {
 
 			// Маска исключения
 			if matched, _ := cfg.matchExclude(file.Name); matched {
-				//log.Trace("Пропускаем - ", file.Name)
+				log.Trace("Пропускаем по маске исключения- ", file.Name)
 				continue
 			}
 
@@ -138,13 +142,15 @@ func scanLoop(cfg *Config) {
 			getInfoFromFile(&file)
 
 			if dateEnd20Day.Before(file.Date) {
-				//log.Trace("не удаляем(<20 дней) - ", file.Name, file.Date, dateEnd20Day)
+				log.Trace("не удаляем(<20 дней) - ", file.Name, file.Date, dateEnd20Day)
 				continue
 			}
 
-			if i := sort.SearchInts(filterDayDel, file.Date.Day()); i < len(filterDayDel) && filterDayDel[i] == file.Date.Day() {
-				//log.Trace("Пропускаем - ", file.Name, file.Date.Day(), filterDayDel)
-				continue
+			if dateEnd3Month.Before(file.Date) {
+				if i := sort.SearchInts(filterDayDel, file.Date.Day()); i < len(filterDayDel) && filterDayDel[i] != file.Date.Day() {
+					log.Trace("Пропускаем - ", file.Name, file.Date.Day(), filterDayDel)
+					continue
+				}
 			}
 
 			//log.Trace("OK - ", file.Name)
@@ -163,15 +169,12 @@ func scanLoop(cfg *Config) {
 		})
 
 		for index := 0; index < len(fileListDel.files); index++ {
-			if dateEnd3Month.After(fileListDel.files[index].Date) {
-				// Если нет файла в filePeriod то добавляем иначе удаляем из среза
-				if _, ok := filePeriod[fileListDel.files[index].Period]; !ok {
-					filePeriod[fileListDel.files[index].Period] = fileListDel.files[index].Name
-					fileListDel.files[index].Deleted = false
-					log.Trace(" ok - ", fileListDel.files[index].Name)
-				}
-			} else {
-				log.Trace("до 3 мес. - ", fileListDel.files[index].Name)
+			log.Trace("Обрабатываем файл - ", fileListDel.files[index].Name)
+			// Оставляем последнии архивы по месяцам
+			if _, ok := filePeriod[fileListDel.files[index].Period]; !ok {
+				filePeriod[fileListDel.files[index].Period] = fileListDel.files[index].Name
+				fileListDel.files[index].Deleted = false
+				log.Trace(" последний в периоде - ", fileListDel.files[index].Name)
 			}
 		}
 		s := ""
@@ -188,7 +191,7 @@ func scanLoop(cfg *Config) {
 				s = fileListDel.files[index].Name + "- Удаляем"
 				log.Info(s)
 				messageMail += s + "\n"
-				if !cfg.ModeWork { // В тестовом режиме не удаляем
+				if !cfg.TestWork { // В тестовом режиме не удаляем
 					if err := removeFile(fileListDel.files[index].FullName); err != nil {
 						log.Fatal(err)
 					}

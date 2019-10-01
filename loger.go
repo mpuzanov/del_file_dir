@@ -19,30 +19,31 @@ func initLogger(cfg *Config) error {
 	}
 	log.SetLevel(level)
 
-	checkMaxFileSize(cfg, logFileName)
+	checkMaxFileSize(cfg)
 
 	if cfg.LogToFile {
-		file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err := os.OpenFile(cfg.LogFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err == nil {
-			log.Println("logToFile: ", logFileName)
+			log.Println("logToFile => ", cfg.LogFileName) // выводим на консоль имя файла для логов
 			log.Out = file
 		} else {
-			log.Info("Failed to log to file, using default stderr")
+			log.Infof("Failed to log to file <%s>, using default stderr", cfg.LogFileName)
 		}
 	}
+	log.Println("=============================================================")
 	log.Println("log.Level:", log.Level)
 	return nil
 }
 
-func checkMaxFileSize(cfg *Config, logFileName string) error {
-	file, err := os.Stat(logFileName)
+func checkMaxFileSize(cfg *Config) error {
+	file, err := os.Stat(cfg.LogFileName)
 	if err != nil {
 		return err
 	}
 	maxFileSize := cfg.MaxFileSize * 1024 * 1024
 	if file.Size() > maxFileSize {
-		log.Println("Очищаем файл ", logFileName)
-		f, err := os.Create(logFileName)
+		log.Println("Очищаем файл ", cfg.LogFileName)
+		f, err := os.Create(cfg.LogFileName)
 		if err != nil {
 			return err
 		}
