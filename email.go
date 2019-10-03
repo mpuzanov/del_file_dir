@@ -13,7 +13,7 @@ type EmailCredentials struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 	Server   string `yaml:"server"`
-	Port     int    `yaml:"port"`
+	Port     string `yaml:"port"`
 }
 
 //SendEmail Отправка почтовых сообщений
@@ -44,8 +44,11 @@ func SendEmail(addFrom, addTo, subject, bodyMessage, attachFiles string) {
 	}
 
 	// send it
-	auth := smtp.PlainAuth("", cfg.SettingsSMTP.Username, authCreds.Password, authCreds.Server)
-	if err := email.Send(authCreds.Server+":25", auth, m); err != nil {
+	var auth smtp.Auth
+	if authCreds.Password != "" {
+		auth = smtp.PlainAuth("", cfg.SettingsSMTP.Username, authCreds.Password, authCreds.Server)
+	}
+	if err := email.Send(authCreds.Server+":"+authCreds.Port, auth, m); err != nil {
 		log.Fatal(err)
 	} else {
 		log.Println("Email Sent!")
