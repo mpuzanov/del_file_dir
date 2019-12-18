@@ -59,6 +59,7 @@ var (
 	filterDayDel = []int{2, 4, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 26, 28, 30}
 	filePeriod   map[string]string
 	messageMail  string
+	kolFileDel   int // Количество удалённых файлов
 )
 
 func main() {
@@ -90,7 +91,7 @@ func main() {
 	}
 	scanLoop(cfg)
 
-	if cfg.SendEmail {
+	if cfg.SendEmail && kolFileDel > 0 {
 		log.Printf("Отправляем на адрес: %s сообщение: %s\n", cfg.ToEmail, messageMail)
 		SendEmail("del_file_dir", cfg.ToEmail, "Результаты чистки диска на сервере", messageMail, "")
 	}
@@ -196,6 +197,7 @@ func scanLoop(cfg *Config) {
 						log.Fatal(err)
 					}
 				}
+				kolFileDel++
 			}
 		}
 		disk = DiskUsage(fullSrcDir)
